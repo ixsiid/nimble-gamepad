@@ -1,0 +1,6 @@
+export.bat
+export.ps1
+build
+*.log
+dependencies.lock
+sdkconfig.old

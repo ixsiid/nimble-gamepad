@@ -22,6 +22,8 @@
 
 #include <simple_nimble_peripheral.hpp>
 
+#include "../../src/sample.hpp"
+
 #define tag "BleGamepad"
 
 extern "C" {
@@ -84,8 +86,13 @@ void app_main(void) {
 	ESP_LOGI(tag, "start");
 	ph->start();
 
+	
+	Sample * s = new Sample();
+	ESP_LOGI(tag, "%d", s->count);
+
 	while (true) {
 		vTaskDelay(1000);
 		ESP_LOGI(tag, "Idle");
 	}
+
 }

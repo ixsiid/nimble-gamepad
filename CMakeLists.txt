@@ -1,8 +1,11 @@
-# For more information about build system see
-# https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html
-# The following five lines of boilerplate have to be in your project's
-# CMakeLists in this exact order for cmake to work correctly
-cmake_minimum_required(VERSION 3.5)
+set(COMPONENT_ADD_INCLUDEDIRS
+    src
+    )
+file(GLOB SRCS
+     src/*.cpp
+	src/*.c
+     )
+set(COMPONENT_SRCS ${SRCS})
+set(COMPONENT_REQUIRES simple-nimble-central)
 
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(NimbleGamepad)
+register_component()

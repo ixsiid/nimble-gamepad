@@ -31,15 +31,5 @@
 *.out
 *.app
 
-export.bat
-export.ps1
-build
-*.log
-dependencies.lock
-sdkconfig.old
-
-main/nxs_macaddr.h
-
 memo.md
-
 .vscode
