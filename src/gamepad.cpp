@@ -21,7 +21,7 @@ struct present_format_t {
 
 BleGamePad::BleGamePad(const char *device_name, uint8_t count)
     : nimble(SimpleNimblePeripheral::get_instance()),
-	 _buffer(new gamepad_u[count]),
+	 _buffer(new gamepad_u[count]{}),
 	 battery_report(Descriptor{
 		.uuid	   = {.u16 = {.u	 = {.type = BLE_UUID_TYPE_16},
 						    .value = 0x2904}},
@@ -34,8 +34,8 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	 hid_report_map(Characteristic(0x2a4b, sizeof(hid_report_map_data), Chr_AccessFlag::Read)),
 	 hid_proto(Characteristic(0x2a4e, 7, Chr_AccessFlag::Read | Chr_AccessFlag::Write_no_response)),
 	 hid_pnp(Characteristic(0x2a50, 7, Chr_AccessFlag::Read)),
-	 pads(new Descriptor[count]) {
-
+	 pads(new Descriptor[count]),
+	 hid_report_pads(new Characteristic[count]) {
 	ESP_LOGI(tag, "set name");
 	nimble->set_name(device_name);
 	nimble->initialize_services(3);
@@ -63,19 +63,20 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	// 0x2908 descriptorを変えることで、複数のGamepadを変える
 	// HID_RPT_ID_GAMEPAD0_IN 0x01(GamePadのインデックスに応じてインクリメント), HID_REPORT_TYPE_INPUT 0x01
 	for (int i = 0; i < count; i++) {
-		pads[i].uuid.u16.u.type = BLE_UUID_TYPE_16;
-		pads[i].uuid.u16.value  = 0x2908;
-		pads[i].flag		    = Dsc_AccessFlag::Read | Dsc_AccessFlag::Write;
-		pads[i].data_length	    = 2;
-		pads[i].buffer[0]	    = i;
-		pads[i].buffer[1]	    = 0x01;
+		Descriptor *p	    = &pads[i];
+		p->uuid.u16.u.type = BLE_UUID_TYPE_16;
+		p->uuid.u16.value  = 0x2908;
+		p->flag		    = Dsc_AccessFlag::Read | Dsc_AccessFlag::Write;
+		p->data_length	    = 2;
+		p->buffer[0]	    = i + 1;
+		p->buffer[1]	    = 0x01;
+
+		hid_report_pads = new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {p});
+		hid_report_pads[i].clear((uint8_t)sizeof(gamepad_t));
 	}
 
-	hid_report_pad = new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pads[0]});
-	hid_report_pad->clear((uint8_t)sizeof(gamepad_t));
-
 	// HID service
-	r = nimble->add_service(nullptr, 0x1812, {&hid_info, &hid_control, &hid_report_map, &hid_proto, &hid_pnp, hid_report_pad});
+	r = nimble->add_service(nullptr, 0x1812, {&hid_info, &hid_control, &hid_report_map, &hid_proto, &hid_pnp, &hid_report_pads[0]});
 	ESP_LOGI(tag, "add HID service: %d", r);
 
 	ESP_LOG_BUFFER_HEXDUMP(tag, hid_report_map_data, sizeof(hid_report_map_data), esp_log_level_t::ESP_LOG_INFO);
@@ -86,13 +87,15 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 
 BleGamePad::~BleGamePad() {
 	delete[] _buffer;
+	delete[] pads;
+	delete[] hid_report_pads;
 }
 
 BleGamePad::gamepad_u *BleGamePad::buffer(uint8_t index) { return _buffer + index; };
 
 void BleGamePad::send(uint8_t index) {
-	(hid_report_pad + index)->write((_buffer + index)->raw, (uint8_t)sizeof(gamepad_t));
-	(hid_report_pad + index)->notify();
+	(hid_report_pads + index)->write((_buffer + index)->raw, (uint8_t)sizeof(gamepad_t));
+	(hid_report_pads + index)->notify();
 }
 
 void BleGamePad::update_battery_level(uint8_t percent) {

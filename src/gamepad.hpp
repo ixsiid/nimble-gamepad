@@ -31,7 +31,7 @@ class BleGamePad {
 	Characteristic hid_info, hid_control, hid_report_map, hid_proto, hid_pnp;
 	
 	Descriptor *pads;
-	Characteristic *hid_report_pad;
+	Characteristic *hid_report_pads;
 
     public:
 	BleGamePad(const char *device_name, uint8_t gamepad_count = 1);
