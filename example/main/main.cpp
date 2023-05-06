@@ -39,7 +39,7 @@ void app_main(void) {
 	}
 	ESP_ERROR_CHECK(ret);
 
-	BleGamePad *gamepad		   = new BleGamePad("AtomS3", 3);
+	BleGamePad *gamepad		   = new BleGamePad("AtomS3", 1);
 	BleGamePad::gamepad_t *pad0 = &(gamepad->buffer(0)->pad);
 	BleGamePad::gamepad_t *pad1 = &(gamepad->buffer(1)->pad);
 	BleGamePad::gamepad_t *pad2 = &(gamepad->buffer(2)->pad);
@@ -51,13 +51,7 @@ void app_main(void) {
 		if ((b % 3) == 0) {
 			pad0->buttons++;
 			gamepad->send(0);
-		} else if ((b % 3) == 1) {
-			pad1->buttons++;
-			gamepad->send(1);
-		} else {
-			pad2->buttons++;
-			gamepad->send(2);
-		}
+		} 
 
 		gamepad->update_battery_level(++b);
 		if (b > 100) b = 0;

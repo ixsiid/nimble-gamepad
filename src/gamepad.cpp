@@ -51,10 +51,9 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	 device_info(Service(0x180a, 1)),
 	 battery_info(Service(0x180f, 1)),
 	 hid(Service(0x1812, 5 + count)) {
-	ESP_LOGI(tag, "set name");
+	ESP_LOGI(tag, "set name: %s", device_name);
 	nimble->set_name(device_name);
 	nimble->initialize_services(3);
-	ESP_LOGI(tag, "set uuid");
 
 	bool r;
 
@@ -99,8 +98,6 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	// HID service
 	r = nimble->add_service(nullptr, &hid);
 	ESP_LOGI(tag, "add HID service: %d", r);
-
-	ESP_LOG_BUFFER_HEXDUMP(tag, ReportMapGenerator::buffer, ReportMapGenerator::length, esp_log_level_t::ESP_LOG_INFO);
 
 	ESP_LOGI(tag, "start");
 	nimble->start();
