@@ -27,10 +27,11 @@ class BleGamePad {
 
 	// NimBLEではNotifyフラグが建てられたCharacteristicにDescripter: 0x2902は自動的に作られるため0x2904だけ作る
 	Descriptor battery_report;
-	Characteristic manufacture, *battery_level;
-	Characteristic *hid_info, *hid_control, *hid_report_map, *hid_proto, *hid_pnp;
-	Characteristic **hid_report_pad_array;
-	Characteristic *hid_report_pad0;
+	Characteristic manufacture, battery_level;
+	Characteristic hid_info, hid_control, hid_report_map, hid_proto, hid_pnp;
+	
+	Descriptor *pads;
+	Characteristic *hid_report_pad;
 
     public:
 	BleGamePad(const char *device_name, uint8_t gamepad_count = 1);
