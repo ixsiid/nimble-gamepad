@@ -20,11 +20,9 @@
 #include <esp_log.h>
 #include <nvs_flash.h>
 
-#include <simple_nimble_peripheral.hpp>
-
 #include "../../src/gamepad.hpp"
 
-#define tag "sample"
+#define tag "GamepadSample"
 
 extern "C" {
 void app_main();
@@ -45,7 +43,7 @@ void app_main(void) {
 	BleGamePad::gamepad_t *pad = &(gamepad->buffer()->pad);
 
 	while (true) {
-		vTaskDelay(2000);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
 		ESP_LOGI(tag, "Idle");
 		pad->buttons++;
 		gamepad->send();
