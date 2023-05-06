@@ -43,7 +43,7 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	 battery_level(Characteristic(0x2a19, 1, Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&battery_report})),
 	 hid_info(Characteristic(0x2a4a, 4, Chr_AccessFlag::Read)),
 	 hid_control(Characteristic(0x2a4c, 1, Chr_AccessFlag::Write_no_response)),
-	 hid_report_map(Characteristic(0x2a4b, sizeof(hid_report_map_data), Chr_AccessFlag::Read)),
+	 hid_report_map(Characteristic(0x2a4b, ReportMapGenerator::generate(count), Chr_AccessFlag::Read)),
 	 hid_proto(Characteristic(0x2a4e, 7, Chr_AccessFlag::Read | Chr_AccessFlag::Write_no_response)),
 	 hid_pnp(Characteristic(0x2a50, 7, Chr_AccessFlag::Read)),
 	 pads(new Descriptor[count]),
@@ -68,7 +68,7 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	// u32, u16でwriteするときはuint8_t[]とは逆順になるので注意
 	hid_info.write_u32(0x02000111);  // HID verion Low 0x11, HID version High 0x01, country code 0x00, HID_FLAGS_NORMALLY_CONNECTABLE 0x02
 	hid_control.write_u8(0);
-	hid_report_map.write(hid_report_map_data, sizeof(hid_report_map_data));
+	hid_report_map.write(ReportMapGenerator::buffer, ReportMapGenerator::length);
 	hid_proto.write_u8(1);								// HID_PROTOCOL_MODE_REPORT
 	hid_pnp.write({0x01, 0x02, 0xe5, 0xab, 0xcd, 0x01, 0x10});	// Bluetooth SIG compani: 0xe502, Product Id: 52651 (0xcdab), Product Version 4097 (0x1001)
 
@@ -85,10 +85,11 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	}
 
 	// HID service
-	r = nimble->add_service(nullptr, 0x1812, {&hid_info, &hid_control, &hid_report_map, &hid_proto, &hid_pnp, hid_report_pads[0]});
+	r = nimble->add_service(nullptr, 0x1812, {&hid_info, &hid_control, &hid_report_map, &hid_proto, &hid_pnp,
+		hid_report_pads[0], hid_report_pads[1], hid_report_pads[2]});
 	ESP_LOGI(tag, "add HID service: %d", r);
 
-	ESP_LOG_BUFFER_HEXDUMP(tag, hid_report_map_data, sizeof(hid_report_map_data), esp_log_level_t::ESP_LOG_INFO);
+	ESP_LOG_BUFFER_HEXDUMP(tag, ReportMapGenerator::buffer, ReportMapGenerator::length, esp_log_level_t::ESP_LOG_INFO);
 
 	ESP_LOGI(tag, "start");
 	nimble->start();

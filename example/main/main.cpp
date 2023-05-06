@@ -39,16 +39,27 @@ void app_main(void) {
 	}
 	ESP_ERROR_CHECK(ret);
 
-	BleGamePad *gamepad		  = new BleGamePad("AtomS3");
-	BleGamePad::gamepad_t *pad = &(gamepad->buffer()->pad);
+	BleGamePad *gamepad		   = new BleGamePad("AtomS3", 3);
+	BleGamePad::gamepad_t *pad0 = &(gamepad->buffer(0)->pad);
+	BleGamePad::gamepad_t *pad1 = &(gamepad->buffer(1)->pad);
+	BleGamePad::gamepad_t *pad2 = &(gamepad->buffer(2)->pad);
 
 	uint8_t b = 15;
 	while (true) {
 		vTaskDelay(5000 / portTICK_PERIOD_MS);
 		ESP_LOGI(tag, "Idle");
-		pad->buttons++;
-		gamepad->send();
+		if ((b % 3) == 0) {
+			pad0->buttons++;
+			gamepad->send(0);
+		} else if ((b % 3) == 1) {
+			pad1->buttons++;
+			gamepad->send(1);
+		} else {
+			pad2->buttons++;
+			gamepad->send(2);
+		}
 
 		gamepad->update_battery_level(++b);
+		if (b > 100) b = 0;
 	}
 }
