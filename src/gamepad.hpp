@@ -34,6 +34,8 @@ class BleGamePad {
 	Descriptor *pads;
 	Characteristic **hid_report_pads;
 
+	Service device_info, battery_info, hid;
+
 	// Descriptor UUIDは多用するため、共用する
 	static const ble_uuid16_t _2904, _2908;
 	static const ble_uuid_t *uuid2904, *uuid2908;

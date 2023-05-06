@@ -47,7 +47,10 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	 hid_proto(Characteristic(0x2a4e, 7, Chr_AccessFlag::Read | Chr_AccessFlag::Write_no_response)),
 	 hid_pnp(Characteristic(0x2a50, 7, Chr_AccessFlag::Read)),
 	 pads(new Descriptor[count]),
-	 hid_report_pads(new Characteristic *[count]) {
+	 hid_report_pads(new Characteristic *[count]),
+	 device_info(Service(0x180a, 1)),
+	 battery_info(Service(0x180f, 1)),
+	 hid(Service(0x1812, 5 + count)) {
 	ESP_LOGI(tag, "set name");
 	nimble->set_name(device_name);
 	nimble->initialize_services(3);
@@ -57,12 +60,14 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 
 	// device information
 	manufacture.write("halzion.net");
-	r = nimble->add_service(nullptr, 0x180a, {&manufacture});
+	device_info.add_characteristic(&manufacture);
+	r = nimble->add_service(nullptr, &device_info);
 	ESP_LOGI(tag, "add device information service: %d", r);
 
 	// battery service
 	battery_level.write_u8(32);  // battery level: 32% 適当に定数値いれる
-	r = nimble->add_service(nullptr, 0x180f, {&battery_level});
+	battery_info.add_characteristic(&battery_level);
+	r = nimble->add_service(nullptr, &battery_info);
 	ESP_LOGI(tag, "add battery service: %d", r);
 
 	// u32, u16でwriteするときはuint8_t[]とは逆順になるので注意
@@ -71,6 +76,12 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	hid_report_map.write(ReportMapGenerator::buffer, ReportMapGenerator::length);
 	hid_proto.write_u8(1);								// HID_PROTOCOL_MODE_REPORT
 	hid_pnp.write({0x01, 0x02, 0xe5, 0xab, 0xcd, 0x01, 0x10});	// Bluetooth SIG compani: 0xe502, Product Id: 52651 (0xcdab), Product Version 4097 (0x1001)
+
+	hid.add_characteristic(&hid_info);
+	hid.add_characteristic(&hid_control);
+	hid.add_characteristic(&hid_report_map);
+	hid.add_characteristic(&hid_proto);
+	hid.add_characteristic(&hid_pnp);
 
 	// 0x2908 descriptorを変えることで、複数のGamepadを変える
 	// HID_RPT_ID_GAMEPAD0_IN 0x01(GamePadのインデックスに応じてインクリメント), HID_REPORT_TYPE_INPUT 0x01
@@ -82,11 +93,11 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 		pads[i].buffer[1]	= 0x01;
 
 		hid_report_pads[i] = new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pads[i]});
+		hid.add_characteristic(hid_report_pads[i]);
 	}
 
 	// HID service
-	r = nimble->add_service(nullptr, 0x1812, {&hid_info, &hid_control, &hid_report_map, &hid_proto, &hid_pnp,
-		hid_report_pads[0], hid_report_pads[1], hid_report_pads[2]});
+	r = nimble->add_service(nullptr, &hid);
 	ESP_LOGI(tag, "add HID service: %d", r);
 
 	ESP_LOG_BUFFER_HEXDUMP(tag, ReportMapGenerator::buffer, ReportMapGenerator::length, esp_log_level_t::ESP_LOG_INFO);
@@ -97,6 +108,9 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 
 BleGamePad::~BleGamePad() {
 	delete[] _buffer;
+	delete[] pads;
+	// for(int i=0; i<count; i++) delete hid_report_pads[i];
+	delete[] hid_report_pads;
 }
 
 BleGamePad::gamepad_u *BleGamePad::buffer(uint8_t index) { return _buffer + index; };
