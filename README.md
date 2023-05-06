@@ -34,14 +34,23 @@ void app_main(void) {
 	}
 	ESP_ERROR_CHECK(ret);
 
-	BleGamePad *gamepad		  = new BleGamePad("DEVICE NAME");
-	BleGamePad::gamepad_t *pad = &(gamepad->buffer()->pad);
+	const size_t device_count = 3;
+	BleGamePad *gamepad = new BleGamePad("DEVICE NAME", device_count);
+
+	BleGamePad::gamepad_t *pad[device_count] = {
+		&(gamepad->buffer(0)->pad),
+		&(gamepad->buffer(1)->pad),
+		&(gamepad->buffer(2)->pad)
+	};
 
 	while (true) {
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
-		pad->buttons++;
-		pad->x += 1;
-		gamepad->send();
+		pad[0]->buttons++;
+		pad[1]->x += 1;
+		pad[2]->slider = 2900;
+		gamepad->send(0);
+		gamepad->send(1);
+		gamepad->send(2);
 	}
 }
 ```
