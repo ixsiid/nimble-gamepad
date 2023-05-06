@@ -42,10 +42,13 @@ void app_main(void) {
 	BleGamePad *gamepad		  = new BleGamePad("AtomS3");
 	BleGamePad::gamepad_t *pad = &(gamepad->buffer()->pad);
 
+	uint8_t b = 15;
 	while (true) {
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
 		ESP_LOGI(tag, "Idle");
 		pad->buttons++;
 		gamepad->send();
+
+		gamepad->update_battery_level(++b);
 	}
 }

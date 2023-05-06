@@ -8,7 +8,6 @@ const char *BleGamePad::tag = "BleGamePad";
 
 static Descriptor pad0;
 
-static Descriptor battery_report;
 struct present_format_t {
 	/// Unit (The Unit is a UUID)
 	uint16_t unit;
@@ -24,7 +23,13 @@ struct present_format_t {
 
 BleGamePad::BleGamePad(const char *device_name, uint8_t count)
     : nimble(SimpleNimblePeripheral::get_instance()),
-	 _buffer(new gamepad_u[count]) {
+	 _buffer(new gamepad_u[count]),
+	 battery_report(Descriptor{
+		.uuid	   = {.u16 = {.u	 = {.type = BLE_UUID_TYPE_16},
+						    .value = 0x2904}},
+		.flag	   = Dsc_AccessFlag::Read | Dsc_AccessFlag::Write,
+		.data_length = sizeof(present_format_t)}),
+	manufacture(Characteristic(0x2a29, 8, Chr_AccessFlag::Read)) {
 	ESP_LOGI(tag, "set name");
 	nimble->set_name(device_name);
 	nimble->initialize_services(3);
@@ -32,26 +37,21 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 
 	bool r;
 
-	manufacture = new Characteristic(0x2a29, 8, Chr_AccessFlag::Read);
-	manufacture->write("halzion.net");
+	//manufacture = new Characteristic(0x2a29, 8, Chr_AccessFlag::Read);
+	manufacture.write("halzion.net");
 
 	// device information
-	r = nimble->add_service(nullptr, 0x180a, {manufacture});
+	r = nimble->add_service(nullptr, 0x180a, {&manufacture});
 	// ESP_LOGI(tag, "add device information service: %d", r);
 
 	// battery service
-	// NimBLEではNotifyフラグが建てられたCharacteristicに0x2902は自動的に作られるため0x2904だけ作る
-	battery_report.uuid.u16.u.type = BLE_UUID_TYPE_16;
-	battery_report.uuid.u16.value	 = 0x2904;
-	battery_report.flag			 = Dsc_AccessFlag::Read | Dsc_AccessFlag::Write;
-	battery_report.data_length	 = sizeof(present_format_t);
 	// present_format_t *pft		 = (present_format_t *)battery_report.buffer;
 	// battery level: 32% 適当に低数値いれる
 	battery_level = new Characteristic(0x2a19, 1,
 								Chr_AccessFlag::Read | Chr_AccessFlag::Notify,
 								{&battery_report});
 	battery_level->write_u8(32);
-	
+
 	r = nimble->add_service(nullptr, 0x180f, {battery_level});
 	ESP_LOGI(tag, "add battery service: %d", r);
 
@@ -73,7 +73,7 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	hid_pnp = new Characteristic(0x2a50, 7, Chr_AccessFlag::Read);
 	// Bluetooth SIG compani: 0xe502, Product Id: 52651 (0xcdab), Product Version 4097 (0x1001)
 	hid_pnp->write({0x01, 0x02, 0xe5, 0xab, 0xcd, 0x01, 0x10});
-	
+
 	// 0x2908 descriptorを変えることで、複数のGamepadを変える
 	// HID_RPT_ID_GAMEPAD0_IN 0x01(GamePadのインデックスに応じてインクリメント), HID_REPORT_TYPE_INPUT 0x01
 	pad0.uuid.u16.u.type = BLE_UUID_TYPE_16;
@@ -83,7 +83,7 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	pad0.buffer[0]		 = 0x01;
 	pad0.buffer[1]		 = 0x01;
 
-	hid_report_pad0	= new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pad0});
+	hid_report_pad0 = new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pad0});
 	hid_report_pad0->clear((uint8_t)sizeof(gamepad_t));
 
 	// HID service
