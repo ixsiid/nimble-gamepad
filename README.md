@@ -6,13 +6,20 @@ ESPをHID Gamepadとして認識させます。NimBLEスタックを使います
 
 手軽に使えることをコンセプトにしています。
 
+動作確認済み
+platform
+- esp-idf v4.4
+
+board
+- ATOMS3
+
 ```cpp
 #include <esp_log.h>
 #include <nvs_flash.h>
 
-#include "../../src/gamepad.hpp"
+#include <gamepad.hpp>
 
-#define tag "GamepadSample"
+const char *tag = "GamepadSample";
 
 extern "C" { void app_main(); }
 
