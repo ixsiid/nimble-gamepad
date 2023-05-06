@@ -7,7 +7,7 @@ class BleGamePad {
     public:
 #pragma pack(1)
 	struct gamepad_t {
-		uint8_t buttons;
+		uint16_t buttons;
 		uint16_t x, y, z;
 		uint16_t rx, ry, rz;
 		uint16_t slider;
@@ -21,10 +21,18 @@ class BleGamePad {
     private:
 	static const char *tag;
 	SimpleNimblePeripheral *nimble;
-	gamepad_u _buffer;
+	gamepad_u *_buffer;
+
+	~BleGamePad();
+
+	Characteristic *manufacture, *battery_level;
+	Characteristic *hid_info, *hid_control, *hid_report_map, *hid_proto, *hid_pnp;
+	Characteristic **hid_report_pad_array;
+	Characteristic *hid_report_pad0;
 
     public:
-	BleGamePad(const char *device_name);
-	gamepad_u *buffer();
-	void send();
+	BleGamePad(const char *device_name, uint8_t gamepad_count = 1);
+	gamepad_u *buffer(uint8_t index = 0);
+	void send(uint8_t index = 0);
+	void update_battery_level(uint8_t percent);
 };
