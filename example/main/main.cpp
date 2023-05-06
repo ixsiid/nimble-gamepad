@@ -45,8 +45,9 @@ void app_main(void) {
 	BleGamePad::gamepad_t *pad = &(gamepad->buffer()->pad);
 
 	while (true) {
-		vTaskDelay(1000);
+		vTaskDelay(2000);
 		ESP_LOGI(tag, "Idle");
+		pad->buttons++;
 		gamepad->send();
 	}
 }

@@ -15,7 +15,7 @@
     0x25, 0x01,        /*     LOGICAL_MAXIMUM (1)              */                            \
     0x75, 0x01,        /*     REPORT_SIZE (1)                  */                            \
     0x95, 0x08,        /*     REPORT_COUNT (8)                 */                            \
-    0x81, 0x02,        /*     INPUT (Data, Variable, Absolute) ;8 button bits */             \
+    0x81, 0x02,        /*     INPUT (Data, Variable, Absolute) ;8 bits */                    \
     /* ---------- X/Y/Z position    -------------------------------------- */                \
     0x05, 0x01,	   /*     USAGE_PAGE (Generic Desktop)     */                            \
     0x09, 0x30,	   /*     USAGE (X)                        */                            \
@@ -36,10 +36,10 @@
     0x26, 0xff, 0x7f,  /*     LOGICAL_MAXIMUM (32767)          */                            \
     0x75, 0x10,	   /*     REPORT_SIZE (16)                 */                            \
     0x95, 0x04,	   /*     REPORT_COUNT (3)                 */                            \
-    0x81, 0x02,	   /*     INPUT (Data, Variable, Absolute) ;6 bytes rX, rY, rZ */        \
+    0x81, 0x02,	   /*     INPUT (Data, Variable, Absolute) ;8 bytes rX, rY, rZ, slider */\
     /* ----------- END -----------------------------------------------------------*/         \
-    0xc0,	             /*     END_COLLECTION */ \
-    0xc0,	             /*     END_COLLECTION */
+    0xc0,	             /*   END_COLLECTION                     */                            \
+    0xc0,	             /* END_COLLECTION                       */
 
 
 static const uint8_t hid_report_map_data[] = {

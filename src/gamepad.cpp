@@ -11,6 +11,8 @@ static SimpleNimbleCharacteristicBuffer *model, *serial, *firm, *soft, *hard, *l
 
 static SimpleNimbleCharacteristicBuffer *hid_info, *hid_control, *hid_report_map, *hid_proto, *hid_report_pad0, *hid_pnp;
 
+static Descriptor pad0;
+
 static Descriptor battery_report;
 struct present_format_t {
 	/// Unit (The Unit is a UUID)
@@ -24,8 +26,6 @@ struct present_format_t {
 	/// Name space
 	uint8_t name_space;
 };
-
-const uint8_t HID_PROTOCOL_MODE_REPORT = 1;
 
 BleGamePad::BleGamePad(const char *device_name)
     : nimble(SimpleNimblePeripheral::get_instance()),
@@ -87,19 +87,31 @@ BleGamePad::BleGamePad(const char *device_name)
 	hid_report_map = new SimpleNimbleCharacteristicBuffer(0x2a4b, sizeof(hid_report_map_data), Chr_AccessFlag::Read);
 	hid_report_map->write(hid_report_map_data, sizeof(hid_report_map_data));
 
-	hid_proto = new SimpleNimbleCharacteristicBuffer(0x2a4e, 1, Chr_AccessFlag::Read | Chr_AccessFlag::Write);
-	hid_proto->write_u8(HID_PROTOCOL_MODE_REPORT);
+	hid_proto = new SimpleNimbleCharacteristicBuffer(0x2a4e, 7, Chr_AccessFlag::Read | Chr_AccessFlag::Write);
+	// HID_PROTOCOL_MODE_REPORT
+	hid_proto->write_u8(1);
 
-	hid_report_pad0 = new SimpleNimbleCharacteristicBuffer(0x2a4d, 2, Chr_AccessFlag::Read | Chr_AccessFlag::Notify);
+	// 0x2908 descriptorを変えることで、複数のGamepadを変える
 	// HID_RPT_ID_GAMEPAD0_IN 0x01(数に応じてインクリメント), HID_REPORT_TYPE_INPUT 0x01
-	hid_report_pad0->write_u16(0x0101);
+	pad0.uuid.u16.u.type = BLE_UUID_TYPE_16;
+	pad0.uuid.u16.value	 = 0x2908;
+	pad0.flag			 = Dsc_AccessFlag::Read;
+	pad0.data_length	 = 2;
+	pad0.buffer[0]		 = 0x01;
+	pad0.buffer[1]		 = 0x01;
 
-	hid_pnp = new SimpleNimbleCharacteristicBuffer(0x2a50, 2, Chr_AccessFlag::Read);
-	// HID_RPT_ID_FEATURE 0x00, HID_REPORT_TYPE_FEATURE 0x03
-	hid_pnp->write_u16(0x0300);
+	hid_report_pad0	= new SimpleNimbleCharacteristicBuffer(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pad0});
+	_buffer.pad.slider	= 0x1234;
+	_buffer.pad.x		= 0x5432;
+	_buffer.pad.buttons = 0b10100101;
+	hid_report_pad0->write(_buffer.raw, (uint8_t)sizeof(gamepad_t));
+
+	hid_pnp = new SimpleNimbleCharacteristicBuffer(0x2a50, 7, Chr_AccessFlag::Read);
+	// Bluetooth SIG compani: 0xe502, Product Id: 52651 (0xcdab), Product Version 4097 (0x1001)
+	hid_pnp->write({0x01, 0x02, 0xe5, 0xab, 0xcd, 0x01, 0x10});
 
 	// HID service
-	r = nimble->add_service(nullptr, 0x1812, {hid_info, hid_control, hid_report_map, hid_proto, hid_report_pad0, hid_pnp});
+	r = nimble->add_service(nullptr, 0x1812, {hid_info, hid_control, hid_report_map, hid_proto, hid_pnp, hid_report_pad0});
 	ESP_LOGI(tag, "add HID service: %d", r);
 
 	ESP_LOGI(tag, "start");
@@ -108,6 +120,7 @@ BleGamePad::BleGamePad(const char *device_name)
 
 BleGamePad::gamepad_u *BleGamePad::buffer() { return &_buffer; };
 
-void BleGamePad::send(){
-    //	nimble->debug();
+void BleGamePad::send() {
+	hid_report_pad0->write(_buffer.raw, (uint8_t)sizeof(gamepad_t));
+	hid_report_pad0->notify();
 };
