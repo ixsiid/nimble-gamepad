@@ -19,7 +19,7 @@ board
 
 #include <gamepad.hpp>
 
-#define tag "GamepadSample"
+const char *tag = "GamepadSample";
 
 extern "C" { void app_main(); }
 
