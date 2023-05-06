@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <vector>
 #include <simple_nimble_peripheral.hpp>
 
 class BleGamePad {
@@ -32,8 +31,8 @@ class BleGamePad {
 	Characteristic manufacture, battery_level;
 	Characteristic hid_info, hid_control, hid_report_map, hid_proto, hid_pnp;
 
-	std::vector<Descriptor> pads;
-	std::vector<Characteristic> hid_report_pads;
+	Descriptor *pads;
+	Characteristic **hid_report_pads;
 
 	// Descriptor UUIDは多用するため、共用する
 	static const ble_uuid16_t _2904, _2908;
