@@ -47,7 +47,7 @@ void app_main(void) {
 	uint8_t b = 15;
 	while (true) {
 		vTaskDelay(5000 / portTICK_PERIOD_MS);
-		ESP_LOGI(tag, "Idle");
+		// ESP_LOGI(tag, "Idle");
 		if ((b % 3) == 0) {
 			pad0->buttons++;
 			gamepad->send(0);
