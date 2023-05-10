@@ -95,6 +95,8 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 		hid.add_characteristic(hid_report_pads[i]);
 	}
 
+	ESP_LOGI(tag, "sizeof gamepad_t: %d", sizeof(gamepad_t));
+
 	// HID service
 	r = nimble->add_service(nullptr, &hid);
 	ESP_LOGI(tag, "add HID service: %d", r);

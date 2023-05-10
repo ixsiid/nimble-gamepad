@@ -22,6 +22,8 @@
 
 #include "../../src/gamepad.hpp"
 
+#include "../../src/gamepad_factory.hpp"
+
 #define tag "GamepadSample"
 
 extern "C" {
@@ -39,10 +41,17 @@ void app_main(void) {
 	}
 	ESP_ERROR_CHECK(ret);
 
-	BleGamePad *gamepad		   = new BleGamePad("AtomS3", 1);
+	BleGamePad *gamepad = BleHid::Factory::begin()
+						 .set_name("AtomS3")
+						 .add_button(3)
+						 .add_axis(BleHid::Axis::X | BleHid::Axis::rY)
+						 .add_pad()
+						 .start();
+
+	// BleGamePad *gamepad		   = new BleGamePad("AtomS3", 1);
 	BleGamePad::gamepad_t *pad0 = &(gamepad->buffer(0)->pad);
-	BleGamePad::gamepad_t *pad1 = &(gamepad->buffer(1)->pad);
-	BleGamePad::gamepad_t *pad2 = &(gamepad->buffer(2)->pad);
+	// BleGamePad::gamepad_t *pad1 = &(gamepad->buffer(1)->pad);
+	// BleGamePad::gamepad_t *pad2 = &(gamepad->buffer(2)->pad);
 
 	uint8_t b = 15;
 	while (true) {
@@ -51,7 +60,7 @@ void app_main(void) {
 		if ((b % 3) == 0) {
 			pad0->buttons++;
 			gamepad->send(0);
-		} 
+		}
 
 		gamepad->update_battery_level(++b);
 		if (b > 100) b = 0;
