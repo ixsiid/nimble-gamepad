@@ -43,13 +43,23 @@ void app_main(void) {
 
 	BleGamePad *gamepad = BleHid::Factory::begin()
 						 .set_name("AtomS3")
-						 .add_button(3)
-						 .add_axis(BleHid::Axis::X | BleHid::Axis::rY)
+						 .add_button(16)
+						 .add_axis(
+							BleHid::Axis::X | BleHid::Axis::Y | BleHid::Axis::Z |
+							BleHid::Axis::rX | BleHid::Axis::rY | BleHid::Axis::rZ | BleHid::Axis::Slider)
 						 .add_pad()
 						 .start();
 
+	struct gamepad_t {
+		uint16_t buttons;
+		uint16_t X, Y, Z;
+		uint16_t rX, rY, rZ;
+		uint16_t Slider;
+	};
+	gamepad_t *pad = (gamepad_t *)gamepad->buffer(0);
+	pad->buttons = 0b1011001100101100;
 	// BleGamePad *gamepad		   = new BleGamePad("AtomS3", 1);
-	BleGamePad::gamepad_t *pad0 = &(gamepad->buffer(0)->pad);
+	// BleGamePad::gamepad_t *pad0 = &(gamepad->buffer(0)->pad);
 	// BleGamePad::gamepad_t *pad1 = &(gamepad->buffer(1)->pad);
 	// BleGamePad::gamepad_t *pad2 = &(gamepad->buffer(2)->pad);
 
@@ -57,10 +67,9 @@ void app_main(void) {
 	while (true) {
 		vTaskDelay(5000 / portTICK_PERIOD_MS);
 		// ESP_LOGI(tag, "Idle");
-		if ((b % 3) == 0) {
-			pad0->buttons++;
-			gamepad->send(0);
-		}
+		pad->X++;
+		pad->buttons = ~pad->buttons;
+		gamepad->send(0);
 
 		gamepad->update_battery_level(++b);
 		if (b > 100) b = 0;

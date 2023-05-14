@@ -3,26 +3,14 @@
 #include <stdint.h>
 #include <simple_nimble_peripheral.hpp>
 
-class BleGamePad {
-    public:
-#pragma pack(1)
-	struct gamepad_t {
-		uint16_t buttons;
-		uint16_t x, y, z;
-		uint16_t rx, ry, rz;
-		uint16_t slider;
-	};
-#pragma pack()
-	union gamepad_u {
-		uint8_t raw[sizeof(gamepad_t)];
-		gamepad_t pad;
-	};
+#include "uuid.hpp"
 
+class BleGamePad {
     private:
 	static const char *tag;
 
 	SimpleNimblePeripheral *nimble;
-	gamepad_u *_buffer;
+	uint8_t *_buffer;
 
 	~BleGamePad();
 
@@ -36,13 +24,11 @@ class BleGamePad {
 
 	Service device_info, battery_info, hid;
 
-	// Descriptor UUIDは多用するため、共用する
-	static const ble_uuid16_t _2904, _2908;
-	static const ble_uuid_t *uuid2904, *uuid2908;
+	const BleHid::report_t * reports;
 
     public:
-	BleGamePad(const char *device_name, uint8_t gamepad_count = 1);
-	gamepad_u *buffer(uint8_t index = 0);
+	BleGamePad(const char *device_name, const BleHid::report_t * reports, size_t report_count, size_t total_report_size, size_t total_report_map_size);
+	uint8_t *buffer(uint8_t index = 0);
 	void send(uint8_t index = 0);
 	void update_battery_level(uint8_t percent);
 };

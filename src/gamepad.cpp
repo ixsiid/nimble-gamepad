@@ -2,22 +2,11 @@
 
 #include "report_map.hpp"
 
+using namespace BleHid;
+
 using namespace SimpleNimble;
 
 const char *BleGamePad::tag = "BleGamePad";
-
-const ble_uuid16_t BleGamePad::_2904 = {
-    .u	 = {.type = BLE_UUID_TYPE_16},
-    .value = 0x2904,
-};
-
-const ble_uuid16_t BleGamePad::_2908 = {
-    .u	 = {.type = BLE_UUID_TYPE_16},
-    .value = 0x2908,
-};
-
-const ble_uuid_t *BleGamePad::uuid2904 = &_2904.u;
-const ble_uuid_t *BleGamePad::uuid2908 = &_2908.u;
 
 struct present_format_t {
 	/// Unit (The Unit is a UUID)
@@ -32,25 +21,26 @@ struct present_format_t {
 	uint8_t name_space;
 };
 
-BleGamePad::BleGamePad(const char *device_name, uint8_t count)
+BleGamePad::BleGamePad(const char *device_name, const report_t *reports, size_t report_count, size_t total_report_size, size_t total_report_map_size)
     : nimble(SimpleNimblePeripheral::get_instance()),
-	 _buffer(new gamepad_u[count]{}),
+	 _buffer(new uint8_t[total_report_size]{}),
 	 battery_report(Descriptor{
-		.uuid	   = uuid2904,
+		.uuid	   = &Uuid_2904.u,
 		.flag	   = Dsc_AccessFlag::Read | Dsc_AccessFlag::Write,
 		.data_length = sizeof(present_format_t)}),
 	 manufacture(Characteristic(0x2a29, 8, Chr_AccessFlag::Read)),
 	 battery_level(Characteristic(0x2a19, 1, Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&battery_report})),
 	 hid_info(Characteristic(0x2a4a, 4, Chr_AccessFlag::Read)),
 	 hid_control(Characteristic(0x2a4c, 1, Chr_AccessFlag::Write_no_response)),
-	 hid_report_map(Characteristic(0x2a4b, ReportMapGenerator::generate(count), Chr_AccessFlag::Read)),
+	 hid_report_map(Characteristic(0x2a4b, total_report_map_size, Chr_AccessFlag::Read)),
 	 hid_proto(Characteristic(0x2a4e, 7, Chr_AccessFlag::Read | Chr_AccessFlag::Write_no_response)),
 	 hid_pnp(Characteristic(0x2a50, 7, Chr_AccessFlag::Read)),
-	 pads(new Descriptor[count]),
-	 hid_report_pads(new Characteristic *[count]),
+	 pads(new Descriptor[report_count]),
+	 hid_report_pads(new Characteristic *[report_count]),
 	 device_info(Service(0x180a, 1)),
 	 battery_info(Service(0x180f, 1)),
-	 hid(Service(0x1812, 5 + count)) {
+	 hid(Service(0x1812, 5 + report_count)),
+	 reports(reports) {
 	ESP_LOGI(tag, "set name: %s", device_name);
 	nimble->set_name(device_name);
 	nimble->initialize_services(3);
@@ -72,7 +62,7 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 	// u32, u16でwriteするときはuint8_t[]とは逆順になるので注意
 	hid_info.write_u32(0x02000111);  // HID verion Low 0x11, HID version High 0x01, country code 0x00, HID_FLAGS_NORMALLY_CONNECTABLE 0x02
 	hid_control.write_u8(0);
-	hid_report_map.write(ReportMapGenerator::buffer, ReportMapGenerator::length);
+	hid_report_map.write(reports[0].report_map, total_report_map_size);
 	hid_proto.write_u8(1);								// HID_PROTOCOL_MODE_REPORT
 	hid_pnp.write({0x01, 0x02, 0xe5, 0xab, 0xcd, 0x01, 0x10});	// Bluetooth SIG compani: 0xe502, Product Id: 52651 (0xcdab), Product Version 4097 (0x1001)
 
@@ -84,18 +74,19 @@ BleGamePad::BleGamePad(const char *device_name, uint8_t count)
 
 	// 0x2908 descriptorを変えることで、複数のGamepadを変える
 	// HID_RPT_ID_GAMEPAD0_IN 0x01(GamePadのインデックスに応じてインクリメント), HID_REPORT_TYPE_INPUT 0x01
-	for (int i = 0; i < count; i++) {
-		pads[i].uuid		= uuid2908;
+	for (int i = 0; i < report_count; i++) {
+		pads[i].uuid		= &Uuid_2908.u;
 		pads[i].flag		= Dsc_AccessFlag::Read;
 		pads[i].data_length = 2;
 		pads[i].buffer[0]	= i + 1;
 		pads[i].buffer[1]	= 0x01;
 
-		hid_report_pads[i] = new Characteristic(0x2a4d, sizeof(gamepad_t), Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pads[i]});
+		hid_report_pads[i] = new Characteristic(0x2a4d, reports[i].report_size, Chr_AccessFlag::Read | Chr_AccessFlag::Notify, {&pads[i]});
 		hid.add_characteristic(hid_report_pads[i]);
+
+		ESP_LOGI(tag, "sizeof report size: %d", reports[i].report_size);
 	}
 
-	ESP_LOGI(tag, "sizeof gamepad_t: %d", sizeof(gamepad_t));
 
 	// HID service
 	r = nimble->add_service(nullptr, &hid);
@@ -112,10 +103,17 @@ BleGamePad::~BleGamePad() {
 	delete[] hid_report_pads;
 }
 
-BleGamePad::gamepad_u *BleGamePad::buffer(uint8_t index) { return _buffer + index; };
+uint8_t *BleGamePad::buffer(uint8_t index) {
+	size_t n = 0;
+	for(int i=0; i<index; i++) n += reports[i].report_size;
+	return _buffer + n;
+};
 
 void BleGamePad::send(uint8_t index) {
-	hid_report_pads[index]->write((_buffer + index)->raw, (uint8_t)sizeof(gamepad_t));
+	size_t n = 0;
+	for(int i=0; i<index; i++) n += reports[i].report_size;
+
+	hid_report_pads[index]->write(_buffer + n, reports[index].report_size);
 	hid_report_pads[index]->notify();
 }
 

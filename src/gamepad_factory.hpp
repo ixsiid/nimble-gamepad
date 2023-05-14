@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_log.h>
+#include "uuid.hpp"
 #include "gamepad.hpp"
 
 namespace BleHid {
@@ -26,7 +27,9 @@ class Factory {
 	const char *name;
 	uint8_t pad_index;
 
-	bool map_generated;
+	report_t reports[16];
+	size_t report_count;
+	size_t total_report_size;
 
 	Factory();
 
@@ -51,7 +54,7 @@ constexpr Axis operator&(Axis l, Axis r) {
 unsigned int axis_count(Axis a) {
 	unsigned count = 0;
 	unsigned int b = static_cast<unsigned int>(a);
-	for(int i=0; i<32; i++) {
+	for (int i = 0; i < 32; i++) {
 		if (b & 1) count++;
 		b >>= 1;
 	}
@@ -63,7 +66,10 @@ Factory::Factory() : i(),
 				 dummy_button(),
 				 axis(),
 				 name(),
-				 pad_index(1) {}
+				 pad_index(1),
+				 reports(),
+				 report_count(0),
+				 total_report_size(0) {}
 
 Factory &Factory::set_name(const char *device_name) {
 	name = device_name;
@@ -88,6 +94,9 @@ Factory &Factory::add_axis(Axis axis_flag) {
 Factory &Factory::add_pad() { return dupulicate_pad(1); }
 Factory &Factory::dupulicate_pad(uint8_t count) {
 	for (int n = 0; n < count; n++) {
+		reports[report_count].report_map  = buffer;
+		reports[report_count].report_size = 0;
+
 		buffer[i++] = 0x05, buffer[i++] = 0x01;		  /* USAGE_PAGE (Generic Desktop)       */
 		buffer[i++] = 0x09, buffer[i++] = 0x05;		  /* USAGE (Gamepad)                    */
 		buffer[i++] = 0xa1, buffer[i++] = 0x01;		  /* COLLECTION (Application)           */
@@ -103,11 +112,13 @@ Factory &Factory::dupulicate_pad(uint8_t count) {
 			buffer[i++] = 0x75, buffer[i++] = 0x01;	  /*   REPORT_SIZE (1)                  */
 			buffer[i++] = 0x95, buffer[i++] = button; /*   REPORT_COUNT (N)                 */
 			buffer[i++] = 0x81, buffer[i++] = 0x02;	  /*   INPUT (Data, Variable, Absolute) */
+			reports[report_count].report_size += 1 * button;
 		}
 		if (dummy_button > 0) {
 			buffer[i++] = 0x75, buffer[i++] = 0x01;		   /*   REPORT_SIZE (1)                  */
 			buffer[i++] = 0x95, buffer[i++] = dummy_button; /*   REPORT_COUNT (N)                 */
 			buffer[i++] = 0x81, buffer[i++] = 0x03;		   /*   INPUT (Const, Variable, Absolute) */
+			reports[report_count].report_size += 1 * dummy_button;
 		}
 
 		if (static_cast<bool>(axis)) {
@@ -119,6 +130,7 @@ Factory &Factory::dupulicate_pad(uint8_t count) {
 			buffer[i++] = 0x75, buffer[i++] = 0x10;					/*   REPORT_SIZE (16)                 */
 			buffer[i++] = 0x95, buffer[i++] = axis_count(axis);		/*   REPORT_COUNT (N)                 */
 			buffer[i++] = 0xa1, buffer[i++] = 0x00;					/*   COLLECTION (Physical)            */
+			reports[report_count].report_size += 0x10 * axis_count(axis);
 			if (static_cast<bool>(axis & Axis::X))
 				buffer[i++] = 0x09, buffer[i++] = 0x30; /*     USAGE (X)                      */
 			if (static_cast<bool>(axis & Axis::Y))
@@ -138,6 +150,10 @@ Factory &Factory::dupulicate_pad(uint8_t count) {
 		}
 		/* ----------- END -----------------------------------------------------------*/
 		buffer[i++] = 0xc0; /* END_COLLECTION   (~Application)    */
+
+		reports[report_count].report_size /= 8;	 // convert bit to byte
+		total_report_size += reports[report_count].report_size;
+		report_count++;
 	};
 
 	button	   = 0;
@@ -148,7 +164,8 @@ Factory &Factory::dupulicate_pad(uint8_t count) {
 
 BleGamePad *Factory::start() {
 	ESP_LOG_BUFFER_HEXDUMP("BUFFER", buffer, i, esp_log_level_t::ESP_LOG_INFO);
-	BleGamePad *p = new BleGamePad(name, 1);
+	// 	BleGamePad *p = new BleGamePad(name, 1);
+	BleGamePad *p = new BleGamePad(name, reports, report_count, total_report_size, i);
 	// 色々カスタムする
 	return p;
 }
